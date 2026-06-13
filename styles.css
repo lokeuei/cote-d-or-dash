@@ -79,6 +79,20 @@ body {
   line-height: 1;
 }
 
+.audio-toggle {
+  position: fixed;
+  z-index: 7;
+  top: max(76px, calc(env(safe-area-inset-top) + 76px));
+  right: max(14px, env(safe-area-inset-right));
+  min-height: 38px;
+  border: 1px solid rgba(255, 247, 234, 0.22);
+  background: rgba(20, 15, 11, 0.48);
+  color: #f7d99e;
+  padding: 0 12px;
+  font-size: 0.72rem;
+  backdrop-filter: blur(12px);
+}
+
 .panel {
   position: fixed;
   z-index: 10;
@@ -178,6 +192,11 @@ button:active {
     left: 24px;
     right: auto;
     width: 390px;
+  }
+
+  .audio-toggle {
+    top: 24px;
+    right: 24px;
   }
 
   .touch-controls {

@@ -8,6 +8,7 @@ const startPanel = document.querySelector("#startPanel");
 const gameOverPanel = document.querySelector("#gameOverPanel");
 const finalScoreEl = document.querySelector("#finalScore");
 const runSummaryEl = document.querySelector("#runSummary");
+const audioButton = document.querySelector("#audioButton");
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -176,6 +177,17 @@ const state = {
   nextObstacleAt: -38,
   nextGrapeAt: -30,
   nextGateAt: -85,
+};
+
+const audioState = {
+  context: null,
+  musicGain: null,
+  sfxGain: null,
+  masterGain: null,
+  musicTimer: null,
+  noteIndex: 0,
+  muted: false,
+  enabled: false,
 };
 
 const runner = makeRunner();
@@ -503,12 +515,118 @@ function moveLane(direction) {
   if (!state.running) return;
   state.laneIndex = THREE.MathUtils.clamp(state.laneIndex + direction, 0, lanes.length - 1);
   state.laneTarget = lanes[state.laneIndex];
+  playTone(260 + state.laneIndex * 45, 0.045, "triangle", 0.035);
 }
 
 function jump() {
   if (!state.running || !state.grounded) return;
   state.verticalVelocity = 8.6;
   state.grounded = false;
+  playJumpSound();
+}
+
+function ensureAudio() {
+  if (audioState.muted) return;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+
+  if (!audioState.context) {
+    audioState.context = new AudioContext();
+    audioState.masterGain = audioState.context.createGain();
+    audioState.musicGain = audioState.context.createGain();
+    audioState.sfxGain = audioState.context.createGain();
+    audioState.masterGain.gain.value = 0.72;
+    audioState.musicGain.gain.value = 0.16;
+    audioState.sfxGain.gain.value = 0.48;
+    audioState.musicGain.connect(audioState.masterGain);
+    audioState.sfxGain.connect(audioState.masterGain);
+    audioState.masterGain.connect(audioState.context.destination);
+  }
+
+  if (audioState.context.state === "suspended") audioState.context.resume();
+  audioState.enabled = true;
+  updateAudioButton();
+  startMusicLoop();
+}
+
+function startMusicLoop() {
+  if (!audioState.context || audioState.musicTimer || audioState.muted) return;
+  scheduleMusicBar();
+  audioState.musicTimer = window.setInterval(scheduleMusicBar, 1800);
+}
+
+function scheduleMusicBar() {
+  if (!audioState.context || audioState.muted) return;
+  const now = audioState.context.currentTime;
+  const notes = [196, 246.94, 293.66, 329.63, 293.66, 246.94];
+  const bass = [98, 123.47, 146.83, 123.47];
+  for (let i = 0; i < 6; i += 1) {
+    scheduleTone(notes[(audioState.noteIndex + i) % notes.length], now + i * 0.3, 0.18, "sine", audioState.musicGain, 0.13);
+  }
+  for (let i = 0; i < 3; i += 1) {
+    scheduleTone(bass[(audioState.noteIndex + i) % bass.length], now + i * 0.6, 0.42, "triangle", audioState.musicGain, 0.1);
+  }
+  audioState.noteIndex = (audioState.noteIndex + 1) % notes.length;
+}
+
+function scheduleTone(frequency, startTime, duration, type, destination, volume) {
+  const context = audioState.context;
+  if (!context || audioState.muted) return;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, startTime);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.exponentialRampToValueAtTime(volume, startTime + 0.025);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  oscillator.connect(gain);
+  gain.connect(destination);
+  oscillator.start(startTime);
+  oscillator.stop(startTime + duration + 0.02);
+}
+
+function playTone(frequency, duration, type = "sine", volume = 0.12) {
+  if (!audioState.context || audioState.muted) return;
+  scheduleTone(frequency, audioState.context.currentTime, duration, type, audioState.sfxGain, volume);
+}
+
+function playJumpSound() {
+  if (!audioState.context || audioState.muted) return;
+  const now = audioState.context.currentTime;
+  scheduleTone(420, now, 0.08, "sine", audioState.sfxGain, 0.18);
+  scheduleTone(620, now + 0.055, 0.12, "sine", audioState.sfxGain, 0.11);
+}
+
+function playPickupSound() {
+  if (!audioState.context || audioState.muted) return;
+  const now = audioState.context.currentTime;
+  scheduleTone(660, now, 0.08, "triangle", audioState.sfxGain, 0.15);
+  scheduleTone(990, now + 0.06, 0.12, "sine", audioState.sfxGain, 0.1);
+}
+
+function playCrashSound() {
+  if (!audioState.context || audioState.muted) return;
+  const now = audioState.context.currentTime;
+  scheduleTone(110, now, 0.22, "sawtooth", audioState.sfxGain, 0.2);
+  scheduleTone(74, now + 0.04, 0.28, "square", audioState.sfxGain, 0.12);
+}
+
+function toggleAudio() {
+  audioState.muted = !audioState.muted;
+  if (audioState.muted) {
+    if (audioState.musicTimer) window.clearInterval(audioState.musicTimer);
+    audioState.musicTimer = null;
+    if (audioState.masterGain) audioState.masterGain.gain.value = 0;
+  } else {
+    ensureAudio();
+    if (audioState.masterGain) audioState.masterGain.gain.value = 0.72;
+  }
+  updateAudioButton();
+}
+
+function updateAudioButton() {
+  audioButton.textContent = audioState.muted ? "Sound Off" : "Sound On";
+  audioButton.setAttribute("aria-label", audioState.muted ? "Turn sound on" : "Turn sound off");
 }
 
 function spawnAhead() {
@@ -570,13 +688,30 @@ function updateGame(delta) {
 }
 
 function recycleRoad() {
-  let farthest = Math.min(...roadPieces.map((piece) => piece.position.z + world.position.z));
+  let farthest = Math.min(...roadPieces.map((piece) => piece.position.z));
   for (const piece of roadPieces) {
     if (piece.position.z + world.position.z > 28) {
       piece.position.z = farthest - segmentLength;
-      farthest = piece.position.z + world.position.z;
+      farthest = piece.position.z;
     }
   }
+}
+
+function getRoadCoverage() {
+  const spans = roadPieces
+    .map((piece) => {
+      const center = piece.position.z + world.position.z;
+      return {
+        start: center - segmentLength / 2,
+        end: center + segmentLength / 2,
+      };
+    })
+    .sort((a, b) => a.start - b.start);
+  let largestGap = 0;
+  for (let i = 1; i < spans.length; i += 1) {
+    largestGap = Math.max(largestGap, spans[i].start - spans[i - 1].end);
+  }
+  return { spans, largestGap };
 }
 
 function testCollections() {
@@ -591,6 +726,7 @@ function testCollections() {
       grape.visible = false;
       state.grapes += 1;
       state.score += 45;
+      playPickupSound();
     }
   }
 }
@@ -620,6 +756,7 @@ function cleanupObjects(list) {
 function endGame() {
   state.running = false;
   state.gameOver = true;
+  playCrashSound();
   finalScoreEl.textContent = state.score.toLocaleString();
   runSummaryEl.textContent = `${Math.floor(state.distance)} meters through the Cote d'Or with ${state.grapes} grape clusters.`;
   gameOverPanel.classList.remove("hidden");
@@ -641,13 +778,30 @@ function resize() {
 }
 
 function bindControls() {
-  document.querySelector("#startButton").addEventListener("click", resetGame);
-  document.querySelector("#restartButton").addEventListener("click", resetGame);
-  document.querySelector("#leftButton").addEventListener("click", () => moveLane(-1));
-  document.querySelector("#rightButton").addEventListener("click", () => moveLane(1));
-  document.querySelector("#jumpButton").addEventListener("click", jump);
+  document.querySelector("#startButton").addEventListener("click", () => {
+    ensureAudio();
+    resetGame();
+  });
+  document.querySelector("#restartButton").addEventListener("click", () => {
+    ensureAudio();
+    resetGame();
+  });
+  document.querySelector("#leftButton").addEventListener("click", () => {
+    ensureAudio();
+    moveLane(-1);
+  });
+  document.querySelector("#rightButton").addEventListener("click", () => {
+    ensureAudio();
+    moveLane(1);
+  });
+  document.querySelector("#jumpButton").addEventListener("click", () => {
+    ensureAudio();
+    jump();
+  });
+  audioButton.addEventListener("click", toggleAudio);
 
   window.addEventListener("keydown", (event) => {
+    ensureAudio();
     if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") moveLane(-1);
     if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") moveLane(1);
     if (event.key === "ArrowUp" || event.key === " ") jump();
@@ -664,6 +818,7 @@ function bindControls() {
     const dx = event.clientX - startX;
     const dy = event.clientY - startY;
     if (Math.abs(dx) < 24 && Math.abs(dy) < 24) return;
+    ensureAudio();
     if (Math.abs(dx) > Math.abs(dy)) moveLane(dx > 0 ? 1 : -1);
     if (dy < -24) jump();
   });
@@ -682,8 +837,12 @@ seedWorld();
 bindControls();
 resize();
 updateHud();
+updateAudioButton();
 window.addEventListener("resize", resize);
 requestAnimationFrame(animate);
+window.__coteDashDebug = {
+  getRoadCoverage,
+};
 
 if (new URLSearchParams(window.location.search).get("autostart") === "1") {
   resetGame();
