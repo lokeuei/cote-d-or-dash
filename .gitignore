@@ -1,0 +1,8 @@
+node_modules/
+*.log
+test-results/
+playwright-report/
+desktop-gameplay.png
+mobile-gameplay.png
+mobile-check*.png
+mobile-diagnostic.png

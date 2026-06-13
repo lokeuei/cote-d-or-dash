@@ -1,0 +1,13 @@
+{
+  "name": "cote-d-or-dash",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A mobile endless running 3D game inspired by Burgundy wine country.",
+  "scripts": {
+    "check": "node --check main.js",
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "three": "0.165.0"
+  }
+}

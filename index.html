@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Cote d'Or Dash</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main id="gameShell" aria-label="Cote d'Or Dash game">
+      <canvas id="gameCanvas"></canvas>
+
+      <section class="hud hud-top" aria-live="polite">
+        <div>
+          <span>Score</span>
+          <strong id="score">0</strong>
+        </div>
+        <div>
+          <span>Clos</span>
+          <strong id="distance">0m</strong>
+        </div>
+        <div>
+          <span>Harvest</span>
+          <strong id="coins">0</strong>
+        </div>
+      </section>
+
+      <section id="startPanel" class="panel">
+        <p class="kicker">Burgundy Wine Country</p>
+        <h1>Cote d'Or Dash</h1>
+        <p>
+          Sprint through vineyard rows, stone villages, cellar arches, and golden
+          harvest light. Swipe to switch lanes, jump over barrels, and collect grapes.
+        </p>
+        <button id="startButton" type="button">Start Run</button>
+      </section>
+
+      <section id="gameOverPanel" class="panel hidden">
+        <p class="kicker">Run Complete</p>
+        <h2 id="finalScore">0</h2>
+        <p id="runSummary">The vineyard road is ready for another attempt.</p>
+        <button id="restartButton" type="button">Run Again</button>
+      </section>
+
+      <nav class="touch-controls" aria-label="Game controls">
+        <button id="leftButton" type="button" aria-label="Move left">‹</button>
+        <button id="jumpButton" type="button" aria-label="Jump">⌃</button>
+        <button id="rightButton" type="button" aria-label="Move right">›</button>
+      </nav>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
