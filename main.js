@@ -241,11 +241,19 @@ function seedWorld() {
   makeStoneGate(-88);
 }
 
+function resetRoadPieces() {
+  roadPieces.forEach((piece, index) => {
+    piece.position.z = 14 - index * segmentLength;
+  });
+}
+
 function resetGame() {
   for (const item of [...obstacles, ...collectibles, ...scenicPieces]) world.remove(item);
   obstacles.length = 0;
   collectibles.length = 0;
   scenicPieces.length = 0;
+  world.position.set(0, 0, 0);
+  resetRoadPieces();
   state.running = true;
   state.gameOver = false;
   state.distance = 0;
@@ -260,6 +268,7 @@ function resetGame() {
   state.nextGrapeAt = -28;
   state.nextGateAt = -86;
   runner.position.set(0, 0.92, 5.1);
+  runner.rotation.set(0, 0, 0);
   updateHud();
   startPanel.classList.add("hidden");
   gameOverPanel.classList.add("hidden");
